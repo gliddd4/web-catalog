@@ -110,12 +110,26 @@ async function ampGet(pathAndQuery) {
     return res && res.status >= 200 && res.status <= 299 ? res.text : null;
 }
 
+// An album's motion cover: { video } (HLS master URL), or null. type: 'square' | 'tall'.
+async function getAnimatedArtwork(albumID, storefront, type) {
+    const sf = /^[a-z]{2}$/.test(String(storefront || '')) ? storefront : 'us';
+    const json = await ampGet(sf + '/albums/' + encodeURIComponent(String(albumID)) + '?extend=editorialVideo&l=en-US&platform=web');
+    if (!json) return null;
+    let ev;
+    try { ev = JSON.parse(json).data[0].attributes.editorialVideo; } catch (e) { return null; }
+    if (!ev) return null;
+    const keys = type === 'tall' ? ['motionDetailTall', 'motionTallVideo3x4', 'motionDetailSquare'] : ['motionDetailSquare', 'motionSquareVideo1x1', 'motionDetailTall'];
+    for (const k of keys) if (ev[k] && ev[k].video) return { video: ev[k].video };
+    return null;
+}
+
 return {
     id: 'web-catalog',
     name: 'Web Catalog',
-    version: '1.1.0',
+    version: '1.2.0',
     type: 'WEB',
-    description: 'Catalog web pages and catalog API: search ranking, suggestions, playlists, album notes, artist pages.',
+    description: 'Catalog web pages and catalog API: search ranking, suggestions, playlists, album notes, artist pages, animated covers.',
     applePage: applePage,
     ampGet: ampGet,
+    getAnimatedArtwork: getAnimatedArtwork,
 };
