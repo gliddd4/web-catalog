@@ -610,6 +610,29 @@ const lyrics = (function () {
         return best;
     }
 
+
+    // Artist bio (plain text) by name: exact-name artist hit first, else the first artist hit. null on a miss.
+    async function getArtistBio(input) {
+        try {
+            var name = String((input && input.name) || input || '').trim();
+            if (!name) return null;
+            var j = await getJSON('https://genius.com/api/search/multi?' + q({ q: name, per_page: '5' }), GENIUS_HEADERS, true, 10000);
+            var sections = (j && j.response && j.response.sections) || [];
+            var id = null, first = null, target = name.toLowerCase();
+            for (var s of sections) for (var h of (s.hits || [])) {
+                var a = h.result && h.result.primary_artist;
+                if (!a || a.id == null) continue;
+                if (first == null) first = a.id;
+                if (id == null && String(a.name || '').toLowerCase() === target) id = a.id;
+            }
+            id = id != null ? id : first;
+            if (id == null) return null;
+            var d = await getJSON('https://genius.com/api/artists/' + id + '?' + q({ text_format: 'plain' }), GENIUS_HEADERS, true, 10000);
+            var plain = d && d.response && d.response.artist && d.response.artist.description && d.response.artist.description.plain;
+            return plain && plain.trim() && plain.trim() !== '?' ? plain : null;
+        } catch (e) { return null; }
+    }
+
     async function getMeanings(input) {
         try {
             var t = { title: String((input && input.title) || ''), artist: String((input && input.artist) || '') };
@@ -636,6 +659,7 @@ const lyrics = (function () {
         description: 'Synced lyrics from Unison, Bini, QQ Music, KuGou, LRCLIB and lyrics.ovh, plus Genius meanings.',
         getLyrics: getLyrics,
         getMeanings: getMeanings,
+        getArtistBio: getArtistBio,
     };
 })();
 
@@ -736,7 +760,7 @@ function strip(o) { const c = Object.assign({}, o); META.forEach(function (k) { 
 return Object.assign(strip(web), strip(lyrics), strip(trackers), {
     id: 'web-catalog',
     name: 'Web Catalog',
-    version: '2.0.0',
+    version: '2.1.0',
     type: 'WEB',
     description: 'Catalog pages and API (search, playlists, artist pages, animated covers), synced lyrics and meanings, and community trackers.',
 });
