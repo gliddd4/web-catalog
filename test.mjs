@@ -1,7 +1,11 @@
 import fs from 'fs';
-const mod = new Function('AsyncStorage', fs.readFileSync(new URL('./modules/web.js', import.meta.url), 'utf8'))({});
+const store = new Map();
+const AS = { getItem: async k => store.get(k) ?? null, setItem: async (k, v) => { store.set(k, v); }, removeItem: async k => { store.delete(k); } };
+const mod = new Function('AsyncStorage', fs.readFileSync(new URL('./modules/web.js', import.meta.url), 'utf8'))(AS);
 const s = await mod.applePage('us/search?term=kanye%20west');
-console.log('search', s && s.length, s && s.includes('serialized-server-data'));
-const a = await mod.applePage('us/artist/x/2715720?uo=4');
-console.log('artist', a && a.length);
-console.log('reject', await mod.applePage('https://evil.example/x'));
+console.log('search', s && s.length);
+const sug = await mod.ampGet('us/search/suggestions?term=kany&kinds=terms%2CtopResults&limit%5Bresults%3Aterms%5D=5&l=en-US&platform=web&types=songs');
+console.log('suggestions', sug ? JSON.parse(sug).results.suggestions.filter(x => x.kind === 'terms').map(x => x.displayTerm || x.searchTerm) : null);
+const ar = await mod.ampGet('us/artists/2715720?extend=bornOrFormed,origin&l=en-US&platform=web');
+console.log('artist', ar ? JSON.parse(ar).data[0].attributes.origin : null);
+console.log('cached token', store.has('token'));
